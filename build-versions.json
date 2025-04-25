@@ -1,0 +1,14 @@
+{
+    "v8": {
+        "git": "https://github.com/v8/v8.git",
+        "branch": "13.2-lkgr"
+    },
+    "skia": {
+        "git": "https://github.com/google/skia.git",
+        "branch": "chrome/m132"
+    },
+    "angle": {
+        "git": "https://github.com/google/angle.git",
+        "branch": "chromium/6834"
+    }
+}
