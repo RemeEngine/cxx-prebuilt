@@ -1,0 +1,148 @@
+name: Build ANGLE with vcpkg
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: vcpkg-angle-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  angle:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # Desktop
+          - name: windows-x64
+            os: windows-latest
+            triplet: x64-windows
+          - name: macos-x64
+            os: macos-13  # Intel
+            triplet: x64-osx
+          - name: macos-arm64
+            os: macos-14  # Apple Silicon
+            triplet: arm64-osx
+          # Android (hosted on Ubuntu builder)
+          - name: android-x64
+            os: ubuntu-latest
+            triplet: android-x64
+            android: true
+          - name: android-arm64
+            os: ubuntu-latest
+            triplet: android-arm64
+            android: true
+          - name: android-arm
+            os: ubuntu-latest
+            triplet: android-arm
+            android: true
+          # iOS (Apple Silicon runner recommended)
+          - name: ios-arm64
+            os: macos-14
+            triplet: arm64-ios
+            ios: true
+
+    env:
+      VCPKG_FEATURE_FLAGS: manifests,binarycaching
+      VCPKG_ROOT: ${{ github.workspace }}/vcpkg
+      VCPKG_DEFAULT_TRIPLET: ${{ matrix.triplet }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          submodules: false
+
+      - name: Setup Java (for Android)
+        if: ${{ matrix.android }}
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - name: Setup Android NDK
+        if: ${{ matrix.android }}
+        id: ndk
+        uses: nttld/setup-ndk@v1
+        with:
+          ndk-version: r26d
+          add-to-path: true
+
+      - name: Configure Android env vars
+        if: ${{ matrix.android }}
+        run: |
+          echo "ANDROID_NDK_HOME=${{ steps.ndk.outputs.ndk-path }}" >> $GITHUB_ENV
+          echo "ANDROID_NDK_ROOT=${{ steps.ndk.outputs.ndk-path }}" >> $GITHUB_ENV
+          echo "ANDROID_SDK_ROOT=$ANDROID_HOME" >> $GITHUB_ENV
+        shell: bash
+
+      - name: Cache vcpkg artifacts
+        uses: actions/cache@v4
+        with:
+          path: |
+            vcpkg/installed
+            vcpkg/buildtrees
+            vcpkg/packages
+            vcpkg/downloads
+          key: vcpkg-${{ runner.os }}-${{ matrix.triplet }}-${{ hashFiles('**/vcpkg.json') }}
+          restore-keys: |
+            vcpkg-${{ runner.os }}-${{ matrix.triplet }}-
+
+      - name: Clone vcpkg
+        run: |
+          git clone https://github.com/microsoft/vcpkg.git
+        if: ${{ !exists('vcpkg/.git') }}
+
+      - name: Bootstrap vcpkg (Windows)
+        if: runner.os == 'Windows'
+        run: .\vcpkg\bootstrap-vcpkg.bat
+        shell: pwsh
+
+      - name: Bootstrap vcpkg (Unix)
+        if: runner.os != 'Windows'
+        run: ./vcpkg/bootstrap-vcpkg.sh
+        shell: bash
+
+      - name: Add vcpkg to PATH
+        run: |
+          echo "${{ github.workspace }}/vcpkg" >> $GITHUB_PATH
+        shell: bash
+
+      - name: Display vcpkg version
+        run: |
+          vcpkg version
+        shell: bash
+
+      - name: Install ANGLE
+        run: |
+          vcpkg install angle --triplet ${{ matrix.triplet }}
+        shell: bash
+
+      - name: List installed packages
+        run: |
+          vcpkg list
+        shell: bash
+
+      - name: Compress installed artifacts
+        run: |
+          tar -czf angle-${{ matrix.triplet }}.tar.gz -C vcpkg/installed ${{ matrix.triplet }}
+        shell: bash
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: angle-${{ matrix.triplet }}
+          path: angle-${{ matrix.triplet }}.tar.gz
+          if-no-files-found: error
+
+      - name: Summary
+        run: |
+          echo "### ANGLE built for ${{ matrix.triplet }}" >> $GITHUB_STEP_SUMMARY
+          echo "Installed path: vcpkg/installed/${{ matrix.triplet }}" >> $GITHUB_STEP_SUMMARY
+        shell: bash
+
