@@ -173,3 +173,116 @@ export function boolean(value: any): boolean {
 			return false;
 	}
 }
+
+/**
+ * Walks a directory recursively and calls the filter function for each file/directory
+ * @param dir Directory to walk
+ * @param filter Function that decides whether to include a file or traverse into a directory
+ * @param callback Function called for each matched file
+ */
+export function walkDir(
+	dir: string,
+	filter: (filePath: string, stats: fs.Stats) => boolean,
+	callback: (filePath: string) => void
+) {
+	if (!fs.existsSync(dir)) {
+		return;
+	}
+
+	const entries = fs.readdirSync(dir);
+
+	for (const entry of entries) {
+		const fullPath = path.join(dir, entry);
+		const stats = fs.statSync(fullPath);
+
+		if (filter(fullPath, stats)) {
+			if (stats.isDirectory()) {
+				walkDir(fullPath, filter, callback);
+			} else if (stats.isFile()) {
+				callback(fullPath);
+			}
+		}
+	}
+}
+
+/**
+ * Simple glob implementation, only supports
+ *
+ * - *     - matches any number of characters, not including /
+ * - *.ext - matches any number of characters, not including /, and ends with .ext
+ * - **    - matches any number of characters, including /
+ *
+ */
+export function copyGlob(src: string, dest: string) {
+	const normalizedSrc = path.normalize(src);
+	const basePath = normalizedSrc.includes('*')
+		? path.dirname(normalizedSrc.split('*')[0].replace(/[\/\\]$/, ''))
+		: normalizedSrc;
+
+	// Escape special regex characters except for * which we'll handle specially
+	const parseGlobToRegex = (pattern: string): RegExp => {
+		// Normalize path separators for the current platform
+		const normalized = path.normalize(pattern);
+
+		// Escape regex special characters
+		let regexPattern = normalized.replace(/[.+?^${}()|[\]\\]/g, '\\$&');
+
+		// Replace glob patterns with regex equivalents
+		regexPattern = regexPattern
+			.replace(/\*\*/g, '__DOUBLE_STAR__')  // Temporary placeholder
+			.replace(/\*/g, '[^/\\\\]*')         // Single * matches anything except path separators
+			.replace(/__DOUBLE_STAR__/g, '.*');  // ** matches anything including path separators
+
+		return new RegExp(`^${regexPattern}$`);
+	};
+
+	// Parse the pattern once
+	const regex = parseGlobToRegex(normalizedSrc);
+
+	if (!fs.existsSync(basePath)) {
+		return;
+	}
+
+	// Make sure destination directory exists
+	if (!fs.existsSync(dest)) {
+		fs.mkdirSync(dest, { recursive: true });
+	}
+
+	walkDir(
+		basePath,
+		(filePath, stats) => {
+			// Always traverse directories
+			if (stats.isDirectory()) {
+				return true;
+			}
+
+			// For files, check if they match the pattern
+			return regex.test(filePath);
+		},
+		(filePath) => {
+			// Create relative path to maintain directory structure
+			const relativePath = path.relative(basePath, filePath);
+			const destPath = path.join(dest, relativePath);
+
+			// Create directory structure in destination
+			const destDir = path.dirname(destPath);
+			if (!fs.existsSync(destDir)) {
+				fs.mkdirSync(destDir, { recursive: true });
+			}
+
+			// Copy the file
+			fs.copyFileSync(filePath, destPath);
+		}
+	);
+}
+
+export function copyFileToDir(src: string, dest: string) {
+	if (fs.existsSync(src)) {
+		const baseName = path.basename(src);
+		const destFile = path.join(dest, baseName)
+		const destDir = path.dirname(destFile);
+
+		fs.mkdirSync(destDir, { recursive: true });
+		fs.copyFileSync(src, destFile);
+	}
+}

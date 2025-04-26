@@ -16,6 +16,7 @@ const enableAsan = args.includes('--asan');
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.join(__dirname, '..');
+const installDir = path.join(root, 'dist');
 pushDir(root);
 
 try {
@@ -27,7 +28,7 @@ try {
 		pushDir(path.join(root, 'v8'));
 
 		$('gclient', ['sync']);
-		build_v8(enableAsan);
+		build_v8(enableAsan, path.join(installDir, 'v8'));
 	}
 } finally {
 	restoreDir();

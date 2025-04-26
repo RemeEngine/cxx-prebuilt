@@ -4,15 +4,15 @@ import fs from 'node:fs';
 import {
 	$,
 	boolean,
+	copyFileToDir,
+	copyGlob,
 	envVar,
-	findSystemClang,
 	gn,
 	maybeCloneRepo,
 	python,
-	which,
 } from './utils.ts';
 
-export function build_v8(isAsan: boolean) {
+export function build_v8(isAsan: boolean, installDir: string) {
 	const targetOS = envVar('TARGET_OS');
 	const targetArch = envVar('TARGET_ARCH');
 	const v8EnablePointerCompression = boolean(
@@ -182,6 +182,12 @@ export function build_v8(isAsan: boolean) {
 	$(gn(), [`--script-executable=${python()}`, 'args', 'gn_out', '--list']);
 
 	$('ninja', ['-C', 'gn_out', 'v8_monolith']);
+
+	const libArchDir = path.join(installDir, 'lib', `${targetArch}-${targetOS}`);
+	copyFileToDir('./gn_out/obj/v8_monolith.lib', libArchDir);
+	copyFileToDir('./gn_out/obj/libv8_monolith.a', libArchDir);
+	copyGlob('./include/**/*.h', path.join(installDir, 'include'));
+	copyGlob('./include/**/*.md', path.join(installDir, 'include'));
 }
 
 function maybeInstallSysroot(arch: string) {
