@@ -79,13 +79,13 @@ export function which(command: string): string {
 	throw new Error(`Command "${command}" not found in PATH`);
 }
 
-export function $(command: string, args: string[] = [], options: SpawnSyncOptions = {}) {
+export function $(command: string, args: string[] = []) {
 	console.log(`> ${command} ${args.join(' ')}`);
 	const ret = spawnSync(command, args, {
 		stdio: ['ignore', 1, 1],
 		shell: true,
-		...options,
 	});
+
 	if (ret.status !== 0) {
 		throw new Error(`Command exited with code ${ret.status}`);
 	}
