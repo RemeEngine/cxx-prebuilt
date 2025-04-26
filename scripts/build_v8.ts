@@ -5,7 +5,7 @@ import {
 	$,
 	boolean,
 	copyFileToDir,
-	copyGlob,
+	copyDir,
 	envVar,
 	gn,
 	maybeCloneRepo,
@@ -186,8 +186,7 @@ export function build_v8(isAsan: boolean, installDir: string) {
 	const libArchDir = path.join(installDir, 'lib', `${targetArch}-${targetOS}`);
 	copyFileToDir('./gn_out/obj/v8_monolith.lib', libArchDir);
 	copyFileToDir('./gn_out/obj/libv8_monolith.a', libArchDir);
-	copyGlob('./include/**/*.h', path.join(installDir, 'include'));
-	copyGlob('./include/**/*.md', path.join(installDir, 'include'));
+	copyDir('./include', path.join(installDir, 'include'), { ext: [ '.h', '.md' ] });
 }
 
 function maybeInstallSysroot(arch: string) {
