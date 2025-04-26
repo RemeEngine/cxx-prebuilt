@@ -3,30 +3,30 @@ import fs from 'node:fs';
 
 import {
 	$,
+	boolean,
 	envVar,
 	findSystemClang,
 	gn,
 	maybeCloneRepo,
 	python,
-	setEnvVar,
+	which,
 } from './utils.ts';
 
 export function build_v8(isAsan: boolean) {
-	setEnvVar('DEPOT_TOOLS_WIN_TOOLCHAIN', '0');
-
 	const targetOS = envVar('TARGET_OS');
 	const targetArch = envVar('TARGET_ARCH');
-	const v8EnablePointerCompression =
-		envVar('V8_ENABLE_POINTER_COMPRESSION') === 'true';
+	const v8EnablePointerCompression = boolean(
+		envVar('V8_ENABLE_POINTER_COMPRESSION')
+	);
 
 	const gnArgs = [
 		'is_debug=false',
-		'use_custom_libcxx=false',
-		`v8_enable_pointer_compression=${v8EnablePointerCompression}`,
 		'is_clang=true',
-		`clang_base_path=${findSystemClang()}`,
+		'clang_use_chrome_plugins=false',
+		`v8_enable_pointer_compression=${v8EnablePointerCompression}`,
+		`clang_base_path="${findSystemClang()}"`,
 		'treat_warnings_as_errors=false',
-		'cc_wrapper=sccache',
+		// `cc_wrapper="${which('sccache')}"`,
 	];
 
 	if (isAsan) {
@@ -118,13 +118,19 @@ export function build_v8(isAsan: boolean) {
 	}
 
 	const args = gnArgs.join(' ');
-	$(gn(), [
-		`--script-executable=${python()}`,
-		'gen',
-		'gn_out',
-		'--ide=json',
-		`--args=${args}`,
-	]);
+	$(
+		gn(),
+		[
+			`--script-executable=${python()}`,
+			'gen',
+			'gn_out',
+			'--ide=json',
+			`--args=${args}`,
+		],
+		{
+			shell: false,
+		}
+	);
 
 	$(gn(), [`--script-executable=${python()}`, 'args', 'gn_out', '--list']);
 

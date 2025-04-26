@@ -2,7 +2,7 @@
     "private": true,
     "type": "module",
     "scripts": {
-        "test": "node --experimental-strip-types scripts/ci.ts v8"
+        "test": "node --env-file .env --experimental-strip-types scripts/ci.ts v8"
     },
     "devDependencies": {
         "@types/node": "^22.15.1"
