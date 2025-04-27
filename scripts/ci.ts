@@ -2,11 +2,13 @@ import process from 'node:process';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
+import { build_skia } from './build_skia.ts';
 import { build_v8 } from './build_v8.ts';
 import {
 	$,
 	maybeSetupDepotTools,
 	pushDir,
+	python,
 	restoreDir,
 	setupSource,
 } from './utils.ts';
@@ -29,6 +31,15 @@ try {
 
 		$('gclient', ['sync']);
 		build_v8(enableAsan, path.join(installDir, 'v8'));
+	}
+
+	if (args.includes('skia')) {
+		setupSource('skia');
+
+		pushDir(path.join(root, 'skia'));
+
+		$(python(), ['tools/git-sync-deps']);
+		build_skia(path.join(installDir, 'skia'));
 	}
 } finally {
 	restoreDir();

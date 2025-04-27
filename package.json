@@ -2,7 +2,7 @@
     "private": true,
     "type": "module",
     "scripts": {
-        "test": "node --env-file .env --experimental-strip-types scripts/ci.ts v8",
+        "test": "node --env-file .env --experimental-strip-types scripts/ci.ts",
         "clean": "node -e \"fs.rmSync('dist', { recursive: true, force: true })\""
     },
     "devDependencies": {

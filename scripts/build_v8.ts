@@ -10,6 +10,7 @@ import {
 	gn,
 	maybeCloneRepo,
 	python,
+	findSystemClang,
 } from './utils.ts';
 
 export function build_v8(isAsan: boolean, installDir: string) {
@@ -26,6 +27,7 @@ export function build_v8(isAsan: boolean, installDir: string) {
 		'v8_monolithic=true',
 		`v8_enable_pointer_compression=${v8EnablePointerCompression}`,
 		'treat_warnings_as_errors=false',
+		// `clang_base_path="${findSystemClang()}"`,
 		// `cc_wrapper="${which('sccache')}"`,
 
 		'clang_use_chrome_plugins=false',
@@ -75,7 +77,11 @@ export function build_v8(isAsan: boolean, installDir: string) {
 		'icu_copy_icudata_to_root_build_dir=false',
 	];
 
-	if (targetOS !== 'windows') {
+	if (targetOS === 'windows') {
+		// The `/Zl` ("omit default library name") flag makes the compiler produce
+		// object files that can link with both the static and dynamic CRT.
+		// gnArgs.push('extra_cflags_c=\\"/Zl\\"');
+	} else {
 		gnArgs.push('simple_template_names=true');
 	}
 
@@ -179,7 +185,7 @@ export function build_v8(isAsan: boolean, installDir: string) {
 		]
 	);
 
-	$(gn(), [`--script-executable=${python()}`, 'args', 'gn_out', '--list']);
+	// $(gn(), [`--script-executable=${python()}`, 'args', 'gn_out', '--list']);
 
 	$('ninja', ['-C', 'gn_out', 'v8_monolith']);
 

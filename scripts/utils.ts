@@ -42,14 +42,21 @@ export function restoreDir() {
 }
 
 export function findSystemClang(): string {
+	const isWin32 = process.platform === 'win32';
 	const clangBasePath = path.resolve(envVar('CLANG_BASE_PATH'));
 	const clangPath = path.join(
 		clangBasePath,
 		'bin',
-		'clang' + (process.platform === 'win32' ? '.exe' : '')
+		'clang' + (isWin32 ? '.exe' : '')
 	);
 	if (!fs.existsSync(clangPath)) {
 		throw new Error(`Clang not found at ${clangPath}`);
+	}
+
+	if (isWin32) {
+		return clangBasePath
+			.replaceAll('\\', '/')
+			.replaceAll(' ', '\\ ');
 	}
 
 	return clangBasePath;
