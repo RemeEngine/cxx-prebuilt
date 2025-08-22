@@ -115,17 +115,18 @@ export function setupSource(repo: keyof typeof VERSIONS) {
 		pushDir(repo);
 		$('git', ['pull']);
 		$('git', ['checkout', info.branch]);
-		$('git', ['submodule', 'update', '--init', '--recursive']);
+		$('git', ['submodule', 'update', '--init', '--recursive', '--depth', '1']);
 		popDir();
 	} else {
 		$('git', [
 			'clone',
-			'--recurse-submodules',
 			'--branch',
 			info.branch,
 			info.git,
 			repo,
 		]);
+
+		$('git', ['submodule', 'update', '--init', '--recursive', '--depth', '1']);
 	}
 
 	fs.writeFileSync(
