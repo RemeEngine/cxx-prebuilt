@@ -39,33 +39,33 @@ export function build_angle(enableAsan: boolean, outDir: string) {
 
 	// Platform-specific configuration
 	if (targetOS === 'windows') {
-		gnArgs.push('target_os=win', 'angle_angle_enable_vulkanenable_d3d11=true ');
+		gnArgs.push('target_os="win"', 'angle_enable_d3d11=true', 'angle_enable_vulkan=true');
 	} else if (targetOS === 'macos') {
-		gnArgs.push('target_os=mac', 'angle_enable_metal=true');
+		gnArgs.push('target_os="mac"', 'angle_enable_metal=true');
 	} else if (targetOS === 'ios') {
-		gnArgs.push('target_os=ios', 'angle_enable_metal=true');
+		gnArgs.push('target_os="ios"', 'angle_enable_metal=true');
 	} else if (targetOS === 'linux') {
-		gnArgs.push('target_os=linux', 'angle_enable_vulkan=true', 'angle_enable_gl=true');
+		gnArgs.push('target_os="linux"', 'angle_enable_vulkan=true', 'angle_enable_gl=true');
 	} else if (targetOS === 'android') {
 		throw new Error('Android builds are not supported (Android support OpenGLES natively)');
 	}
 
 	// Architecture-specific configuration
 	if (targetArch === 'aarch64') {
-		gnArgs.push('target_cpu=arm64');
+		gnArgs.push('target_cpu="arm64"');
 	} else if (targetArch === 'arm') {
-		gnArgs.push('target_cpu=arm');
+		gnArgs.push('target_cpu="arm"');
 	} else if (targetArch === 'i686') {
-		gnArgs.push('target_cpu=x86');
+		gnArgs.push('target_cpu="x86"');
 	} else if (targetArch === 'x86_64') {
-		gnArgs.push('target_cpu=x64');
+		gnArgs.push('target_cpu="x64"');
 	}
 
 	const gnOutDir = 'gn_out';
 	const args = gnArgs.join(' ');
 
 	// Generate build files with gn
-	$(gn(), [`--script-executable=${python()}`, 'gen', gnOutDir, '--ide=json', `--args="${args}"`]);
+	$(gn(), [`--script-executable=${python()}`, 'gen', gnOutDir, '--ide=json', `--args="${JSON.stringify(args)}"`]);
 
 	// Build ANGLE libraries
 	$('ninja', ['-C', gnOutDir, 'libEGL', 'libGLESv2']);

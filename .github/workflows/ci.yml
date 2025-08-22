@@ -9,7 +9,7 @@ on:
 
 jobs:
   build:
-    runs-on: ${{ matrix.run_on }}
+    runs-on: ${{ matrix.config.run_on }}
 
     strategy:
       fail-fast: false
@@ -21,8 +21,8 @@ jobs:
             package: angle
 
     env:
-      TARGET_OS: ${{ matrix.target_os }}
-      TARGET_ARCH: ${{ matrix.target_arch }}
+      TARGET_OS: ${{ matrix.config.target_os }}
+      TARGET_ARCH: ${{ matrix.config.target_arch }}
 
     steps:
     - name: Configure git
@@ -35,7 +35,7 @@ jobs:
     - name: Setup Node.js
       uses: actions/setup-node@v4
       with:
-        node-version: '20'
+        node-version: '22.18'
         cache: 'npm'
 
     - name: Setup Python
@@ -49,8 +49,8 @@ jobs:
       with:
         path: |-
           tmp/sccache
-        key:
-        restore-keys:
+        key: cc-${{ matrix.config.package }}-${{ matrix.config.target_os }}-${{ matrix.config.target_arch }}-${{ hashFiles('build-versions.json') }}
+        restore-keys: cc-${{ matrix.config.package }}-${{ matrix.config.target_os }}-${{ matrix.config.target_arch }}-
 
     - name: Install and start sccache
       shell: pwsh
@@ -75,13 +75,13 @@ jobs:
         . $basename/sccache --start-server
         echo "$(pwd)/$basename" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
 
-    - name: Build ${{ matrix.package }}
-      run: npm run build ${{ matrix.package }}
+    - name: Build ${{ matrix.config.package }}
+      run: npm run build ${{ matrix.config.package }}
 
     - name: Upload artifacts
       uses: actions/upload-artifact@v4
       if: success()
       with:
-        name: ${{ matrix.package }}-${{ matrix.target_os }}-${{ matrix.target_arch }}
+        name: ${{ matrix.config.package }}-${{ matrix.config.target_os }}-${{ matrix.config.target_arch }}
         path: dist/
         retention-days: 7
