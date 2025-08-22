@@ -11,14 +11,13 @@ import {
 	maybeCloneRepo,
 	python,
 	findSystemClang,
+	which,
 } from './utils.ts';
 
 export function build_v8(isAsan: boolean, installDir: string) {
 	const targetOS = envVar('TARGET_OS');
 	const targetArch = envVar('TARGET_ARCH');
-	const v8EnablePointerCompression = boolean(
-		envVar('V8_ENABLE_POINTER_COMPRESSION')
-	);
+	const v8EnablePointerCompression = boolean(envVar('V8_ENABLE_POINTER_COMPRESSION'));
 
 	const gnArgs = [
 		'is_debug=false',
@@ -27,8 +26,8 @@ export function build_v8(isAsan: boolean, installDir: string) {
 		'v8_monolithic=true',
 		`v8_enable_pointer_compression=${v8EnablePointerCompression}`,
 		'treat_warnings_as_errors=false',
-		// `clang_base_path="${findSystemClang()}"`,
-		// `cc_wrapper="${which('sccache')}"`,
+		`clang_base_path="${findSystemClang()}"`,
+		`cc_wrapper="${which('sccache')}"`,
 
 		'clang_use_chrome_plugins=false',
 		'is_component_build=false',
@@ -143,18 +142,9 @@ export function build_v8(isAsan: boolean, installDir: string) {
 				'https://dl.google.com/android/repository/android-ndk-r26c-linux.zip',
 			]);
 
-			$('unzip', [
-				'-d',
-				'./third_party/',
-				'-o',
-				'-q',
-				'./third_party/android-ndk-r26c-linux.zip',
-			]);
+			$('unzip', ['-d', './third_party/', '-o', '-q', './third_party/android-ndk-r26c-linux.zip']);
 
-			fs.renameSync(
-				'./third_party/android-ndk-r26c',
-				'./third_party/android_ndk'
-			);
+			fs.renameSync('./third_party/android-ndk-r26c', './third_party/android_ndk');
 			fs.unlinkSync('./third_party/android-ndk-r26c-linux.zip');
 		}
 
@@ -163,10 +153,7 @@ export function build_v8(isAsan: boolean, installDir: string) {
 			'./third_party/android_platform',
 			`${CHROMIUM_URI}/chromium/src/third_party/android_platform.git`
 		);
-		maybeCloneRepo(
-			'./third_party/catapult',
-			`${CHROMIUM_URI}/catapult.git`
-		);
+		maybeCloneRepo('./third_party/catapult', `${CHROMIUM_URI}/catapult.git`);
 	}
 
 	if (targetArch === 'i686') {
@@ -174,16 +161,7 @@ export function build_v8(isAsan: boolean, installDir: string) {
 	}
 
 	const args = gnArgs.join(' ');
-	$(
-		gn(),
-		[
-			`--script-executable=${python()}`,
-			'gen',
-			'gn_out',
-			'--ide=json',
-			`--args="${args}"`,
-		]
-	);
+	$(gn(), [`--script-executable=${python()}`, 'gen', 'gn_out', '--ide=json', `--args="${args}"`]);
 
 	// $(gn(), [`--script-executable=${python()}`, 'args', 'gn_out', '--list']);
 
@@ -192,7 +170,7 @@ export function build_v8(isAsan: boolean, installDir: string) {
 	const libArchDir = path.join(installDir, 'lib', `${targetArch}-${targetOS}`);
 	copyFileToDir('./gn_out/obj/v8_monolith.lib', libArchDir);
 	copyFileToDir('./gn_out/obj/libv8_monolith.a', libArchDir);
-	copyDir('./include', path.join(installDir, 'include'), { ext: [ '.h', '.md' ] });
+	copyDir('./include', path.join(installDir, 'include'), { ext: ['.h', '.md'] });
 }
 
 function maybeInstallSysroot(arch: string) {
@@ -201,8 +179,5 @@ function maybeInstallSysroot(arch: string) {
 		return;
 	}
 
-	$(python(), [
-		'./build/linux/sysroot_scripts/install-sysroot.py',
-		`--arch=${arch}`,
-	]);
+	$(python(), ['./build/linux/sysroot_scripts/install-sysroot.py', `--arch=${arch}`]);
 }

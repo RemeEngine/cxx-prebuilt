@@ -4,14 +4,8 @@ import path from 'node:path';
 
 import { build_skia } from './build_skia.ts';
 import { build_v8 } from './build_v8.ts';
-import {
-	$,
-	maybeSetupDepotTools,
-	pushDir,
-	python,
-	restoreDir,
-	setupSource,
-} from './utils.ts';
+import { build_angle } from './build_angle.ts';
+import { $, maybeSetupDepotTools, pushDir, python, restoreDir, setupSource } from './utils.ts';
 
 const args = process.argv.slice(2);
 const enableAsan = args.includes('--asan');
@@ -40,6 +34,15 @@ try {
 
 		$(python(), ['tools/git-sync-deps']);
 		build_skia(path.join(installDir, 'skia'));
+	}
+
+	if (args.includes('angle')) {
+		setupSource('angle');
+
+		pushDir(path.join(root, 'angle'));
+
+		$('gclient', ['sync']);
+		build_angle(enableAsan, path.join(installDir, 'angle'));
 	}
 } finally {
 	restoreDir();

@@ -1,0 +1,87 @@
+name: CI
+
+on:
+  push:
+    branches: [ master, main ]
+  pull_request:
+    branches: [ master, main ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ${{ matrix.run_on }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        config:
+          - run_on: windows-latest
+            target_os: windows
+            target_arch: x86_64
+            package: angle
+
+    env:
+      TARGET_OS: ${{ matrix.target_os }}
+      TARGET_ARCH: ${{ matrix.target_arch }}
+
+    steps:
+    - name: Configure git
+      run: git config --global core.symlinks true
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: 'npm'
+
+    - name: Setup Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: 3.11.x
+        architecture: x64
+
+    - name: Cache
+      uses: actions/cache@v4
+      with:
+        path: |-
+          tmp/sccache
+        key:
+        restore-keys:
+
+    - name: Install and start sccache
+      shell: pwsh
+      env:
+        SCCACHE_DIR: ${{ github.workspace }}/tmp/sccache
+        SCCACHE_CACHE_SIZE: 256M
+        SCCACHE_IDLE_TIMEOUT: 0
+      run: |
+        $version = "v0.8.2"
+        $platform =
+          @{ "x86_64-apple-darwin"        = "x86_64-apple-darwin"
+              "aarch64-apple-darwin"      = "aarch64-apple-darwin"
+              "x86_64-unknown-linux-gnu"  = "x86_64-unknown-linux-musl"
+              "aarch64-unknown-linux-gnu" = "aarch64-unknown-linux-musl"
+              "windows"                   = "x86_64-pc-windows-msvc"
+            }['${{ matrix.config.target_os }}']
+        $basename = "sccache-$version-$platform"
+        $url = "https://github.com/mozilla/sccache/releases/download/$version/$basename.tar.gz"
+        cd ~
+        curl -LO $url
+        tar -xzvf "$basename.tar.gz"
+        . $basename/sccache --start-server
+        echo "$(pwd)/$basename" | Out-File -FilePath $env:GITHUB_PATH -Encoding utf8 -Append
+
+    - name: Build ${{ matrix.package }}
+      run: npm run build ${{ matrix.package }}
+
+    - name: Upload artifacts
+      uses: actions/upload-artifact@v4
+      if: success()
+      with:
+        name: ${{ matrix.package }}-${{ matrix.target_os }}-${{ matrix.target_arch }}
+        path: dist/
+        retention-days: 7

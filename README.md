@@ -1,6 +1,6 @@
 # Build sources to library for easier usage in application
 
-Currently use `m132` of
+Currently use `m138` of
 - skia
 - v8
 - ANGLE
