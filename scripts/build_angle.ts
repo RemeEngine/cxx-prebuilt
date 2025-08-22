@@ -65,7 +65,7 @@ export function build_angle(enableAsan: boolean, outDir: string) {
 	const args = gnArgs.join(' ');
 
 	// Generate build files with gn
-	$(gn(), [`--script-executable=${python()}`, 'gen', gnOutDir, '--ide=json', `--args="${JSON.stringify(args)}"`]);
+	$(gn(), [`--script-executable=${python()}`, 'gen', gnOutDir, '--ide=json', `--args=${JSON.stringify(args)}`]);
 
 	// Build ANGLE libraries
 	$('ninja', ['-C', gnOutDir, 'libEGL', 'libGLESv2']);
