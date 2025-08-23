@@ -39,13 +39,13 @@ export function build_angle(enableAsan: boolean, outDir: string) {
 
 	// Platform-specific configuration
 	if (targetOS === 'windows') {
-		gnArgs.push('target_os="win"', 'angle_enable_d3d11=true', 'angle_enable_vulkan=true');
+		gnArgs.push('target_os="win"', 'angle_enable_vulkan=true');
 	} else if (targetOS === 'macos') {
 		gnArgs.push('target_os="mac"', 'angle_enable_metal=true');
 	} else if (targetOS === 'ios') {
 		gnArgs.push('target_os="ios"', 'angle_enable_metal=true');
 	} else if (targetOS === 'linux') {
-		gnArgs.push('target_os="linux"', 'angle_enable_vulkan=true', 'angle_enable_gl=true');
+		gnArgs.push('target_os="linux"', 'angle_enable_vulkan=true');
 	} else if (targetOS === 'android') {
 		throw new Error('Android builds are not supported (Android support OpenGLES natively)');
 	}
