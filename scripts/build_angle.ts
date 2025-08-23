@@ -20,7 +20,7 @@ export function build_angle(enableAsan: boolean, outDir: string) {
 		'clang_use_chrome_plugins=false',
 
 		// Minimize size of debuginfo
-		'symbol_level=1',
+		// 'symbol_level=1',
 		'use_debug_fission=false',
 
 		// ANGLE specific settings
@@ -39,7 +39,7 @@ export function build_angle(enableAsan: boolean, outDir: string) {
 
 	// Platform-specific configuration
 	if (targetOS === 'windows') {
-		gnArgs.push('target_os="win"', 'angle_enable_vulkan=true');
+		gnArgs.push('target_os="win"', 'angle_enable_vulkan=true', 'angle_enable_d3d11=true');
 	} else if (targetOS === 'macos') {
 		gnArgs.push('target_os="mac"', 'angle_enable_metal=true');
 	} else if (targetOS === 'ios') {

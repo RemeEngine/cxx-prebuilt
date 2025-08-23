@@ -115,7 +115,7 @@ export function setupSource(repo: keyof typeof VERSIONS) {
 		pushDir(repo);
 		$('git', ['pull']);
 		$('git', ['checkout', info.branch]);
-		$('git', ['submodule', 'update', '--init', '--recursive', '--depth', '1']);
+		// $('git', ['submodule', 'update', '--init', '--recursive', '--depth', '1']);
 		popDir();
 	} else {
 		$('git', [
@@ -126,7 +126,7 @@ export function setupSource(repo: keyof typeof VERSIONS) {
 			repo,
 		]);
 
-		$('git', ['submodule', 'update', '--init', '--recursive', '--depth', '1']);
+		// $('git', ['submodule', 'update', '--init', '--recursive', '--depth', '1']);
 	}
 
 	fs.writeFileSync(
