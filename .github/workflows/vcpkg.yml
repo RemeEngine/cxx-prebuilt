@@ -1,6 +1,8 @@
 name: Build ANGLE with vcpkg
 
 on:
+  push:
+    branches: [ 'vcpkg' ]
   workflow_dispatch:
 
 permissions:
@@ -51,12 +53,37 @@ jobs:
       VCPKG_FEATURE_FLAGS: manifests,binarycaching
       VCPKG_ROOT: ${{ github.workspace }}/vcpkg
       VCPKG_DEFAULT_TRIPLET: ${{ matrix.triplet }}
+      # Pin vcpkg for reproducibility (update this commit manually as needed)
+      VCPKG_COMMIT: 2025.09.17
+      # Enable local binary caching directory (created later if absent)
+      VCPKG_BINARY_SOURCES: files,${{ github.workspace }}/vcpkg/archives,readwrite
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
         with:
           submodules: false
+
+      - name: Clone vcpkg (pinned)
+        run: |
+          set -e
+          if [ -d "vcpkg/.git" ]; then
+            echo "vcpkg repo already present. Verifying..."
+            git -C vcpkg rev-parse --is-inside-work-tree || { echo "Corrupt vcpkg directory"; exit 1; }
+          else
+            echo "Cloning vcpkg..."
+            rm -rf vcpkg
+            git clone --depth 1 https://github.com/microsoft/vcpkg.git vcpkg
+          fi
+          # If VCPKG_COMMIT looks like a full sha (40 hex) or a tag/date string, attempt checkout.
+          if [ -n "${VCPKG_COMMIT}" ]; then
+            echo "Checking out vcpkg ref: ${VCPKG_COMMIT}"
+            git -C vcpkg fetch --depth 1 origin "${VCPKG_COMMIT}" || true
+            git -C vcpkg checkout "${VCPKG_COMMIT}" || echo "Warning: could not checkout ${VCPKG_COMMIT}, staying on cloned head."
+          fi
+          echo "Active vcpkg commit:"
+          git -C vcpkg rev-parse HEAD
+        shell: bash
 
       - name: Setup Java (for Android)
         if: ${{ matrix.android }}
@@ -81,6 +108,10 @@ jobs:
           echo "ANDROID_SDK_ROOT=$ANDROID_HOME" >> $GITHUB_ENV
         shell: bash
 
+      - name: Prepare binary cache dir
+        run: mkdir -p "$VCPKG_ROOT/archives"
+        shell: bash
+
       - name: Cache vcpkg artifacts
         uses: actions/cache@v4
         with:
@@ -89,14 +120,22 @@ jobs:
             vcpkg/buildtrees
             vcpkg/packages
             vcpkg/downloads
-          key: vcpkg-${{ runner.os }}-${{ matrix.triplet }}-${{ hashFiles('**/vcpkg.json') }}
+            vcpkg/archives
+          key: vcpkg-${{ runner.os }}-${{ matrix.triplet }}-${{ env.VCPKG_COMMIT }}-${{ hashFiles('**/vcpkg.json') }}
           restore-keys: |
+            vcpkg-${{ runner.os }}-${{ matrix.triplet }}-${{ env.VCPKG_COMMIT }}-
             vcpkg-${{ runner.os }}-${{ matrix.triplet }}-
 
       - name: Clone vcpkg
         run: |
-          git clone https://github.com/microsoft/vcpkg.git
-        if: ${{ !exists('vcpkg/.git') }}
+          if [ ! -d "vcpkg/.git" ]; then
+            echo "Cloning vcpkg repository..."
+            git clone https://github.com/microsoft/vcpkg.git
+          else
+            echo "vcpkg already present. Skipping clone."
+            git -C vcpkg status --short || true
+          fi
+        shell: bash
 
       - name: Bootstrap vcpkg (Windows)
         if: runner.os == 'Windows'
@@ -120,7 +159,16 @@ jobs:
 
       - name: Install ANGLE
         run: |
-          vcpkg install angle --triplet ${{ matrix.triplet }}
+          set -e
+          echo "Using vcpkg commit: $(git -C vcpkg rev-parse --short HEAD)"
+          echo "Installing ANGLE for triplet ${{ matrix.triplet }}"
+          if ! vcpkg install angle --triplet ${{ matrix.triplet }} --clean-after-build; then
+            echo "Installation failed. Attempting to show logs..."
+            find vcpkg/buildtrees -maxdepth 3 -name config.log -print -exec sed -n '1,200p' {} \; || true
+            echo "Listing buildtrees directory for context:"
+            find vcpkg/buildtrees -maxdepth 2 -type f -printf '%p\n' | head -n 200 || true
+            exit 1
+          fi
         shell: bash
 
       - name: List installed packages
@@ -144,5 +192,19 @@ jobs:
         run: |
           echo "### ANGLE built for ${{ matrix.triplet }}" >> $GITHUB_STEP_SUMMARY
           echo "Installed path: vcpkg/installed/${{ matrix.triplet }}" >> $GITHUB_STEP_SUMMARY
+          echo "vcpkg commit: $(git -C vcpkg rev-parse HEAD)" >> $GITHUB_STEP_SUMMARY
+          ANGLE_LINE=$(vcpkg list | grep '^angle ' || true)
+          if [ -n "$ANGLE_LINE" ]; then
+            echo "ANGLE package: $ANGLE_LINE" >> $GITHUB_STEP_SUMMARY
+          fi
+          # Attempt to infer ANGLE source commit/hash from buildtrees directory naming (best-effort)
+          ANGLE_SRC_DIR=$(ls -1d vcpkg/buildtrees/angle/src/* 2>/dev/null | head -n1 || true)
+          if [ -n "$ANGLE_SRC_DIR" ]; then
+            # Extract a probable commit hash (7-40 hex chars) from the path
+            ANGLE_COMMIT=$(echo "$ANGLE_SRC_DIR" | sed -E 's/.*\/([0-9a-f]{7,40}).*/\1/' )
+            if [[ "$ANGLE_COMMIT" =~ ^[0-9a-f]{7,40}$ ]]; then
+              echo "ANGLE source ref: $ANGLE_COMMIT" >> $GITHUB_STEP_SUMMARY
+            fi
+          fi
         shell: bash
 
